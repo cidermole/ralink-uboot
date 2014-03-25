@@ -24,7 +24,8 @@
 /* Flash opcodes. */
 #define OPCODE_WREN		6	/* Write enable */
 #define OPCODE_WRDI		4	/* Write disable */
-#define OPCODE_RDSR		5	/* Read status register */
+#define OPCODE_RDSR     5  /* Read status register */
+#define OPCODE_RDFSR		0x70	/* Read flag status register */
 #define OPCODE_WRSR		1	/* Write status register */
 #define OPCODE_READ		3	/* Read data bytes */
 #define OPCODE_PP		2	/* Page program */
@@ -509,12 +510,12 @@ static int raspi_write_rg(u8 *val, u8 opcode)
 
 
 /*
- * read status register
+ * read flag status register
  */
-static int raspi_read_sr(u8 *val)
+static int raspi_read_fsr(u8 *val)
 {
 	ssize_t retval;
-	u8 code = OPCODE_RDSR;
+	u8 code = OPCODE_RDFSR;
 
 #ifdef COMMAND_MODE
 	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
@@ -526,6 +527,52 @@ static int raspi_read_sr(u8 *val)
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * read status register
+ */
+static int raspi_read_sr(u8 *val)
+{
+   ssize_t retval;
+   u8 code = OPCODE_RDSR;
+
+#ifdef COMMAND_MODE
+   retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
+#else
+   retval = spic_read(&code, 1, val, 1);
+#endif
+   if (retval != 1) {
+      printf("%s: ret: %x\n", __func__, retval);
+      return -1;
+   }
+   return 0;
+}
+
+static void raspi_poll_print_status()
+{
+   u8 fsr, sr, sr_old, fsr_old;
+   
+   if(!raspi_read_fsr(&fsr))
+      return;
+   if(!raspi_read_fsr(&sr))
+      return;
+   sr_old = sr; fsr_old = fsr;
+   printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
+   
+   while(sr & (1 << 0)) { // write in progress
+      if(!raspi_read_fsr(&fsr))
+         return;
+      if(!raspi_read_fsr(&sr))
+         return;
+      if(fsr != fsr_old || sr != sr_old) {
+         printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
+         sr_old = sr; fsr_old = fsr;
+      }
+   }
+   printf("OK.\n");
+   
+   //udelay(10*1000);
 }
 
 /*
@@ -695,6 +742,16 @@ static inline int raspi_unprotect(void)
 		sr = 0;
 		raspi_write_sr(&sr);
 	}
+	
+	if (raspi_read_sr(&sr) < 0) {
+      printf("%s: read_sr 2 fail: %x\n", __func__, sr);
+      return -1;
+   }
+   
+   if ((sr & (SR_BP0 | SR_BP1 | SR_BP2)) != 0) {
+      printf("%s: tried to overwrite sr, but failed: %x\n", __func__, sr);
+      return -2;
+   }
 }
 
 /*
@@ -1050,6 +1107,7 @@ int raspi_write(char *buf, unsigned int to, int len)
 	if (spi_chip_info->addr4b) {
 		raspi_4byte_mode(1);
 	}
+   printf("4B address mode.\n");
 #endif
 
 	/* write everything in PAGESIZE chunks */
@@ -1087,8 +1145,6 @@ int raspi_write(char *buf, unsigned int to, int len)
 		else
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES);
 
-
-
 		//{
 		//	u32 user;
 			
@@ -1099,12 +1155,17 @@ int raspi_write(char *buf, unsigned int to, int len)
 		//printf("rc = %d\n", rc);
 		
 #else // COMMAND_MODE
+
+
+      
 #ifdef ADDRESS_4B_MODE
 		if (spi_chip_info->addr4b)
 			rc = spic_write(cmd, 5, buf, page_size);
 		else
 #endif
 			rc = spic_write(cmd, 4, buf, page_size);
+         
+      raspi_poll_print_status();
 
 #endif // COMMAND_MODE
 
