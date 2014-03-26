@@ -1079,10 +1079,17 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 int raspi_write(char *buf, unsigned int to, int len)
 {
+   u8 fsr;
+   char *orig_buf = buf;
 	u32 page_offset, page_size;
 	int rc = 0, retlen = 0;
 	u8 cmd[5];
 
+#ifdef COMMAND_MODE
+   printf("raspi_write with COMMAND_MODE\n");
+#else
+   printf("raspi_write not with command mode.\n");
+#endif
 	ra_dbg("%s: to:%x len:%x \n", __func__, to, len);
 
 	/* sanity checks */
@@ -1158,7 +1165,12 @@ int raspi_write(char *buf, unsigned int to, int len)
 		else
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES);
 
-      raspi_poll_print_status();
+      raspi_read_fsr(&fsr);
+      if(fsr & (1 << 4)) // Program error bit
+      {
+         printf("FSR program error, at to=%08X, %08X, page_size = %08X", to, buf - orig_buf, page_size);
+         raspi_poll_print_status();
+      }
       
 		//{
 		//	u32 user;
@@ -1180,7 +1192,6 @@ int raspi_write(char *buf, unsigned int to, int len)
 #endif
 			rc = spic_write(cmd, 4, buf, page_size);
          
-      raspi_poll_print_status();
 
 #endif // COMMAND_MODE
 
