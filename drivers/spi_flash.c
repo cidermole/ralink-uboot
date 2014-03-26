@@ -691,6 +691,12 @@ static int raspi_4byte_mode(int enable)
 			code = 0xE9; /* EX4B, exit 4-byte mode */
 			ra_and(RT2880_SPICFG_REG, ~(SPICFG_ADDRMODE));
 		}
+		
+      /*
+       * See N25Q512A datasheet, page 29, table 18, note 16:
+       * "The WRITE ENABLE command must be issued first before this command can be executed."
+       */
+      raspi_write_enable();
 #ifdef COMMAND_MODE
 		{
 			u32 user;
@@ -702,6 +708,8 @@ static int raspi_4byte_mode(int enable)
 #else
 		retval = spic_read(&code, 1, 0, 0);
 #endif
+      raspi_write_disable();
+      
 		if (retval != 0) {
 			printf("%s: ret: %x\n", __func__, retval);
 			return -1;
