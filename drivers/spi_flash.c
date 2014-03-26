@@ -74,7 +74,7 @@
 #define SPI_FIFO_SIZE 16
 
 #if defined (MT7620_ASIC_BOARD) || defined (MT7620_FPGA_BOARD)
-#define COMMAND_MODE		// define this for SPI flash command/user mode support
+//#define COMMAND_MODE		// define this for SPI flash command/user mode support
 #endif
 //#define COMMAND_MODE		// define this for SPI flash command/user mode support
 //#define ADDR_4B			// if all instruction use 4B address mode
