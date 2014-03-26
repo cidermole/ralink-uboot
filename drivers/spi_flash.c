@@ -1111,7 +1111,7 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 int raspi_write(char *buf, unsigned int to, int len)
 {
-   u8 fsr;
+   u8 fsr, sr;
    char *orig_buf = buf;
 	u32 page_offset, page_size;
 	int rc = 0, retlen = 0;
@@ -1193,6 +1193,10 @@ int raspi_write(char *buf, unsigned int to, int len)
 		raspi_set_quad();
 #endif
 
+      raspi_read_sr(&sr);
+      if(!(sr & (1 << 1)))
+         printf("%s: write enable missing! to:%x len:%x \n", __func__, to, len);
+
 		if (spi_chip_info->addr4b)
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES | SPIC_4B_ADDR);
 		else
@@ -1204,6 +1208,10 @@ int raspi_write(char *buf, unsigned int to, int len)
          printf("FSR program error, at to=%08X, %08X, page_size = %08X", to, buf - orig_buf, page_size);
          raspi_poll_print_status();
       }
+      ("%s: to:%x len:%x \n", __func__, to, len);
+      // wait until ready
+      while(!(fsr & (1 << 7)))
+         raspi_read_fsr(&fsr);
       
 		//{
 		//	u32 user;
