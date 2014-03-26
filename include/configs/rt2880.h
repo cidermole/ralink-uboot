@@ -431,5 +431,6 @@
 #endif /* RALINK_USB */
 
 #define CFG_HUSH_PARSER
+#define CFG_PROMPT_HUSH_PS2 "hush>"
 
 #endif	/* __CONFIG_H */
