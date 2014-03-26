@@ -540,11 +540,13 @@ static int raspi_read_fsr(u8 *val)
 {
 	ssize_t retval;
 	u8 code = OPCODE_RDFSR;
+/*
 #ifdef COMMAND_MODE
 	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
 #else
+*/
 	retval = spic_read(&code, 1, val, 1);
-#endif
+//#endif
 	if (retval != 1) {
 		printf("%s: ret: %x\n", __func__, retval);
 		return -1;
@@ -559,12 +561,13 @@ static int raspi_write_sr(u8 *val)
 {
 	ssize_t retval;
 	u8 code = OPCODE_WRSR;
-
+/*
 #ifdef COMMAND_MODE
 	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_WRITE_BYTES);
 #else
+*/
 	retval = spic_write(&code, 1, val, 1);
-#endif
+//#endif
 	if (retval != 1) {
 		printf("%s: ret: %x\n", __func__, retval);
 		return -1;
