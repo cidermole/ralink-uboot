@@ -26,6 +26,7 @@
 #define OPCODE_WRDI		4	/* Write disable */
 #define OPCODE_RDSR		5	/* Read status register */
 #define OPCODE_WRSR		1	/* Write status register */
+#define OPCODE_RDFSR		0x70	/* Read flag status register */
 #define OPCODE_READ		3	/* Read data bytes */
 #define OPCODE_PP		2	/* Page program */
 #define OPCODE_SE		0xD8	/* Sector erase */
@@ -60,6 +61,9 @@
 #define SR_BP2			0x10	/* Block protect 2 */
 #define SR_EPE			0x20	/* Erase/Program error */
 #define SR_SRWD			0x80	/* SR write protect */
+
+/* Flag Status Register bits. */
+#define FSR_PEC		0x80 /* Program/erase controller */
 
 #define ra_inl(addr)  (*(volatile u32 *)(addr))
 #define ra_outl(addr, value)  (*(volatile u32 *)(addr) = (value))
@@ -258,8 +262,6 @@ struct chip_info *spi_chip_info = NULL;
 
 static struct chip_info chips_data [] = {
 	/* REVISIT: fill in JEDEC ids, for parts that have them */
-	{ "N25Q512_B",      0x20, 0xbb201000, 64 * 1024, 1024,  0 },
-	{ "N25Q512_A",      0x20, 0xba201000, 64 * 1024, 1024,  0 },
 	{ "AT25DF321",		0x1f, 0x47000000, 64 * 1024, 64,  0 },
 	{ "AT26DF161",		0x1f, 0x46000000, 64 * 1024, 32,  0 },
 	{ "FL016AIF",		0x01, 0x02140000, 64 * 1024, 32,  0 },
@@ -271,6 +273,7 @@ static struct chip_info chips_data [] = {
 #ifndef NO_4B_ADDRESS_SUPPORT
 	{ "MX25L25635E",	0xc2, 0x2019c220, 64 * 1024, 512, 1 },
 	{ "S25FL256S",		0x01, 0x02194D01, 64 * 1024, 512, 1 },
+	{ "N25Q512A13G",	0x20, 0xba201000, 64 * 1024, 1024,  1 },
 #endif
 	{ "S25FL128P",		0x01, 0x20180301, 64 * 1024, 256, 0 },
 	{ "S25FL129P",		0x01, 0x20184D01, 64 * 1024, 256, 0 },
@@ -529,6 +532,25 @@ static int raspi_read_sr(u8 *val)
 }
 
 /*
+ * read flag status register
+ */
+static int raspi_read_fsr(u8 *val)
+{
+	ssize_t retval;
+	u8 code = OPCODE_RDFSR;
+#ifdef COMMAND_MODE
+	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
+#else
+	retval = spic_read(&code, 1, val, 1);
+#endif
+	if (retval != 1) {
+		printf("%s: ret: %x\n", __func__, retval);
+		return -1;
+	}
+	return 0;
+}
+
+/*
  * write status register
  */
 static int raspi_write_sr(u8 *val)
@@ -630,6 +652,15 @@ static int raspi_4byte_mode(int enable)
 			code = 0xE9; /* EX4B, exit 4-byte mode */
 			ra_and(RT2880_SPICFG_REG, ~(SPICFG_ADDRMODE));
 		}
+		
+		/*
+		 * We MUST issue a WRITE ENABLE here.
+		 * 
+		 * See N25Q512A datasheet, page 30, table 18, note 16:
+		 * "The WRITE ENABLE command must be issued first before this command can be executed."
+		 */
+		raspi_write_enable();
+
 #ifdef COMMAND_MODE
 		{
 			u32 user;
@@ -641,6 +672,9 @@ static int raspi_4byte_mode(int enable)
 #else
 		retval = spic_read(&code, 1, 0, 0);
 #endif
+		
+		raspi_write_disable();
+		
 		if (retval != 0) {
 			printf("%s: ret: %x\n", __func__, retval);
 			return -1;
@@ -1009,6 +1043,7 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 int raspi_write(char *buf, unsigned int to, int len)
 {
+	u8 fsr = 0;
 	u32 page_offset, page_size;
 	int rc = 0, retlen = 0;
 	u8 cmd[5];
@@ -1087,7 +1122,14 @@ int raspi_write(char *buf, unsigned int to, int len)
 		else
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES);
 
-
+		/*
+		 * We MUST read the FSR here.
+		 * 
+		 * See N25Q512A datasheet, page 30, table 18, note 14:
+		 * "Requires the READ FLAG STATUS REGISTER command being issued with at least one byte output."
+		 */
+		while(!(fsr & FSR_PEC))
+			raspi_read_fsr(&fsr);
 
 		//{
 		//	u32 user;
