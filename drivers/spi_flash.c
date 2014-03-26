@@ -815,9 +815,11 @@ static int raspi_erase_sector(u32 offset)
 	raspi_unprotect();
 
 #ifdef COMMAND_MODE
+   printf("COMMAND_MODE.\n");
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b)
 	{
+      printf("4B address mode activated.\n");
 		raspi_4byte_mode(1);
 		raspi_write_enable();
 		raspi_cmd(OPCODE_SE, offset, 0, 0, 0, 0, SPIC_4B_ADDR);
@@ -833,9 +835,11 @@ static int raspi_erase_sector(u32 offset)
 
 
 #else // COMMAND_MODE
+   printf("not command mode.\n");
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
 
+      printf("4B address mode in non-cmd m.\n");
 		raspi_4byte_mode(1);
 		raspi_write_enable();
 
@@ -1124,10 +1128,11 @@ int raspi_write(char *buf, unsigned int to, int len)
 	page_offset = to % FLASH_PAGESIZE;
 
 #ifdef ADDRESS_4B_MODE
+   printf("4B address mode compiled in.\n");
 	if (spi_chip_info->addr4b) {
+      printf("4B address mode activated.\n");
 		raspi_4byte_mode(1);
 	}
-   printf("4B address mode.\n");
 #endif
 
 	/* write everything in PAGESIZE chunks */
