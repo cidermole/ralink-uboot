@@ -28,6 +28,8 @@
 #include <common.h>
 #include <command.h>
 
+#define CFG_HUSH_PARSER
+
 int
 do_version (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
