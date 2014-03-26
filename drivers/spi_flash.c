@@ -527,7 +527,7 @@ static int raspi_read_fsr(u8 *val)
 #ifdef COMMAND_MODE
 	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
 #else*/
-   printf("read_fsr: OPCODE_RDFSR\n");
+   //printf("read_fsr: OPCODE_RDFSR\n");
 	retval = spic_read(&code, 1, val, 1);
 //#endif
 	if (retval != 1) {
@@ -565,6 +565,11 @@ static void raspi_poll_print_status()
       return;
    if(raspi_read_sr(&sr))
       return;
+   
+   /* nothing of interest, aal izz well! */
+   if(sr == 0x00 && fsr == 0x80)
+      return;
+   
    sr_old = sr; fsr_old = fsr;
    printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
    
@@ -578,7 +583,7 @@ static void raspi_poll_print_status()
          sr_old = sr; fsr_old = fsr;
       }
    }
-   printf("OK.\n");
+   //printf("OK.\n");
    
    //udelay(10*1000);
 }
@@ -1375,7 +1380,7 @@ int do_read_sr(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
    u8 fsr, sr;
    
-   printf("do_read_sr()...\n");
+   //printf("do_read_sr()...\n");
    
    if(raspi_read_fsr(&fsr)) {
       printf("read_fsr failed with 2\n");
