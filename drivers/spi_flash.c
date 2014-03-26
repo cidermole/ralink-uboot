@@ -114,10 +114,11 @@ static void gpio0_high(void)
 
 static int spic_busy_wait(void)
 {
+   unsigned int t = spi_wait_nsec;
 	do {
 		if ((ra_inl(RT2880_SPI0_STAT_REG) & 0x01) == 0)
 			return 0;
-	} while (spi_wait_nsec >> 1);
+	} while (--t);
 
 	printf("%s: fail \n", __func__);
 	return -1;
@@ -148,6 +149,7 @@ static int spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
 			(flag == SPIC_READ_BYTES)? "read" : "write");
 	*/
 
+   printf("spic_transfer() starting..\n");
 	// assert CS and we are already CLK normal high
 	ra_and(RT2880_SPI0_CTL_REG, ~(SPICTL_SPIENA_HIGH));
 	
@@ -156,6 +158,7 @@ static int spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
 		ra_outl(RT2880_SPI0_DATA_REG, cmd[retval]);
 		ra_or(RT2880_SPI0_CTL_REG, SPICTL_STARTWR);
 		if (spic_busy_wait()) {
+         printf("spic_busy_wait() timed out\n");
 			retval = -1;
 			goto end_trans;
 		}
@@ -171,6 +174,7 @@ static int spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
 			}
 #endif
 			if (spic_busy_wait()) {
+            printf("spic_busy_wait() timed out 2\n");
 				printf("\n");
 				goto end_trans;
 			}
@@ -192,6 +196,7 @@ end_trans:
 	// de-assert CS and
 	ra_or (RT2880_SPI0_CTL_REG, (SPICTL_SPIENA_HIGH));
 
+   printf("spic_transfer() finished\n");
 	return retval;
 }
 
@@ -240,8 +245,10 @@ int spic_init(void)
 	ra_outl(RT2880_SPI0_CTL_REG, SPICTL_HIZSDO | SPICTL_SPIENA_HIGH);
 
 	spi_wait_nsec = (8 * 1000 / ((mips_bus_feq / 1000 / 1000 / SPICFG_SPICLK_DIV8) )) >> 1 ;
+   
+   spi_wait_nsec = 1000; // David
 
-	printf("spi_wait_nsec: %x \n", spi_wait_nsec);
+	printf("spi_wait_nsec: %x (DAVID HARDCODED) \n", spi_wait_nsec);
 	return 0;
 }
 
@@ -516,12 +523,13 @@ static int raspi_read_fsr(u8 *val)
 {
 	ssize_t retval;
 	u8 code = OPCODE_RDFSR;
-
+/*
 #ifdef COMMAND_MODE
 	retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
-#else
+#else*/
+   printf("read_fsr: OPCODE_RDFSR\n");
 	retval = spic_read(&code, 1, val, 1);
-#endif
+//#endif
 	if (retval != 1) {
 		printf("%s: ret: %x\n", __func__, retval);
 		return -1;
@@ -537,11 +545,11 @@ static int raspi_read_sr(u8 *val)
    ssize_t retval;
    u8 code = OPCODE_RDSR;
 
-#ifdef COMMAND_MODE
+/*#ifdef COMMAND_MODE
    retval = raspi_cmd(code, 0, 0, val, 1, 0, SPIC_READ_BYTES);
-#else
+#else*/
    retval = spic_read(&code, 1, val, 1);
-#endif
+//#endif
    if (retval != 1) {
       printf("%s: ret: %x\n", __func__, retval);
       return -1;
@@ -555,7 +563,7 @@ static void raspi_poll_print_status()
    
    if(!raspi_read_fsr(&fsr))
       return;
-   if(!raspi_read_fsr(&sr))
+   if(!raspi_read_sr(&sr))
       return;
    sr_old = sr; fsr_old = fsr;
    printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
@@ -563,7 +571,7 @@ static void raspi_poll_print_status()
    while(sr & (1 << 0)) { // write in progress
       if(!raspi_read_fsr(&fsr))
          return;
-      if(!raspi_read_fsr(&sr))
+      if(!raspi_read_sr(&sr))
          return;
       if(fsr != fsr_old || sr != sr_old) {
          printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
@@ -1145,6 +1153,8 @@ int raspi_write(char *buf, unsigned int to, int len)
 		else
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES);
 
+      raspi_poll_print_status();
+      
 		//{
 		//	u32 user;
 			
@@ -1331,6 +1341,179 @@ int raspi_erase_write(char *buf, unsigned int offs, int count)
 	printf("Done!\n");
 	return 0;
 }
+
+
+
+
+/*
+U_BOOT_CMD(
+   erase,   2, 1, do_flerase,
+   "erase   - erase SPI FLASH memory\n",
+   "\nerase all\n    - erase all FLASH banks\n"
+   "erase uboot\n    - erase uboot block\n"
+   "erase linux\n    - erase linux kernel block\n"
+);
+
+int do_flerase (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+
+
+static int raspi_read_fsr(u8 *val)
+static int raspi_read_sr(u8 *val)
+
+static inline int raspi_unprotect(void)
+raspi_init(void)
+
+static int raspi_erase_sector(u32 offset)
+int raspi_erase(unsigned int offs, int len)
+int raspi_read(char *buf, unsigned int from, int len)
+int raspi_write(char *buf, unsigned int to, int len)
+int raspi_erase_write(char *buf, unsigned int offs, int count)
+
+*/
+
+int do_read_sr(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   u8 fsr, sr;
+   
+   printf("do_read_sr()...\n");
+   
+   if(!raspi_read_fsr(&fsr))
+      return 2;
+   if(!raspi_read_sr(&sr))
+      return 2;
+   
+   printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
+   return 0;
+}
+U_BOOT_CMD(
+   read_sr,   1, 1, do_read_sr,
+   "read_sr - read SR and FSR\n",
+   "\n"
+);
+
+int do_unprotect(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   if(!raspi_unprotect())
+      return 2;
+
+   return 0;
+}
+U_BOOT_CMD(
+   unprotect,   1, 1, do_unprotect,
+   "unprotect - unprotect all the Flash\n",
+   "\n"
+);
+
+int do_erase_sector(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   unsigned int offset;
+   
+   if (argc < 2) {
+      printf ("Usage:\n%s\n", cmdtp->usage);
+      return 1;
+   }
+   
+   offset = simple_strtoul(argv[1], NULL, 16);
+   
+   return raspi_erase_sector(offset);
+}
+U_BOOT_CMD(
+   erase_sector,   2, 1, do_erase_sector,
+   "erase_sector\n",
+   "\n"
+);
+
+int do_erase(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   unsigned int offs;
+   int len;
+   
+   if (argc < 3) {
+      printf ("Usage:\n%s\n", cmdtp->usage);
+      return 1;
+   }
+   
+   offs = simple_strtoul(argv[1], NULL, 16);
+   len = simple_strtol(argv[2], NULL, 16);
+   
+   return raspi_erase(offs, len);
+}
+U_BOOT_CMD(
+   rerase,   3, 1, do_erase,
+   "rerase\n",
+   "\n"
+);
+
+int do_read(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   unsigned int buf;
+   unsigned int from;
+   int len;
+   
+   if (argc < 3) {
+      printf ("Usage:\n%s\n", cmdtp->usage);
+      return 1;
+   }
+   
+   buf = simple_strtoul(argv[1], NULL, 16);
+   from = simple_strtoul(argv[2], NULL, 16);
+   len = simple_strtol(argv[3], NULL, 16);
+   
+   return raspi_read((char *) buf, from, len);
+}
+U_BOOT_CMD(
+   rread,   4, 1, do_read,
+   "rread\n",
+   "\n"
+);
+
+int do_write(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   unsigned int buf;
+   unsigned int from;
+   int len;
+   
+   if (argc < 3) {
+      printf ("Usage:\n%s\n", cmdtp->usage);
+      return 1;
+   }
+   
+   buf = simple_strtoul(argv[1], NULL, 16);
+   from = simple_strtoul(argv[2], NULL, 16);
+   len = simple_strtol(argv[3], NULL, 16);
+   
+   return raspi_write((char *) buf, from, len);
+}
+U_BOOT_CMD(
+   rwrite,   4, 1, do_write,
+   "rwrite\n",
+   "\n"
+);
+
+int do_erase_write(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+   unsigned int buf;
+   unsigned int from;
+   int len;
+   
+   if (argc < 3) {
+      printf ("Usage:\n%s\n", cmdtp->usage);
+      return 1;
+   }
+   
+   buf = simple_strtoul(argv[1], NULL, 16);
+   from = simple_strtoul(argv[2], NULL, 16);
+   len = simple_strtol(argv[3], NULL, 16);
+   
+   return raspi_erase_write((char *) buf, from, len);
+}
+U_BOOT_CMD(
+   erase_write,   4, 1, do_erase_write,
+   "erase_write\n",
+   "\n"
+);
+
+
 
 extern ulong NetBootFileXferSize;
 
