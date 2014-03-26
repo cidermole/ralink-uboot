@@ -678,8 +678,13 @@ static int raspi_4byte_mode(int enable)
 	{
 		ssize_t retval;
 		u8 code;
+      u8 fsr;
 
 		raspi_wait_ready(1);
+      
+      raspi_read_fsr(&fsr);
+      if(fsr & (1 << 0))
+         printf("raspi_4byte_mode(): FSR=0x%02X: already in 4B mode\n", fsr);
 	
 		if (enable)
 		{
@@ -709,6 +714,10 @@ static int raspi_4byte_mode(int enable)
 		retval = spic_read(&code, 1, 0, 0);
 #endif
       raspi_write_disable();
+
+      raspi_read_fsr(&fsr);
+      if(!(fsr & (1 << 0)))
+         printf("raspi_4byte_mode(): FSR=0x%02X: 4B mode switch failed\n", fsr);
       
 		if (retval != 0) {
 			printf("%s: ret: %x\n", __func__, retval);
