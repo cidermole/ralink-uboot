@@ -74,7 +74,7 @@
 #define SPI_FIFO_SIZE 16
 
 #if defined (MT7620_ASIC_BOARD) || defined (MT7620_FPGA_BOARD)
-//#define COMMAND_MODE		// define this for SPI flash command/user mode support
+#define COMMAND_MODE		// define this for SPI flash command/user mode support
 #endif
 //#define COMMAND_MODE		// define this for SPI flash command/user mode support
 //#define ADDR_4B			// if all instruction use 4B address mode
@@ -1010,9 +1010,13 @@ int raspi_read(char *buf, unsigned int from, int len)
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b)
 	{
+      printf("raspi_4byte_mode(1) from raspi_read() CM\n");
 		raspi_4byte_mode(1);
+      printf("O\n");
 		rdlen = raspi_cmd(code, from, 0, buf, len, 0, SPIC_READ_BYTES | SPIC_4B_ADDR);
+      printf("raspi_4byte_mode(0) from raspi_read() CM\n");
 		raspi_4byte_mode(0);
+      printf("O\n");
 	}
 	else
 #endif
@@ -1028,13 +1032,17 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
+      printf("raspi_4byte_mode(1) from raspi_read()\n");
 		raspi_4byte_mode(1);
+      printf("O\n");
 		cmd[1] = from >> 24;
 		cmd[2] = from >> 16;
 		cmd[3] = from >> 8;
 		cmd[4] = from;
 		rdlen = spic_read(cmd, 5, buf , len);
+      printf("raspi_4byte_mode(0) from raspi_read()\n");
 		raspi_4byte_mode(0);
+      printf("O\n");
 	}
 	else
 #endif
@@ -1048,6 +1056,8 @@ int raspi_read(char *buf, unsigned int from, int len)
 		printf("warning: rdlen != len\n");
 
 #else // READ_BY_PAGE
+   
+   printf("READ_BY_PAGE, so no raspi_4byte_mode info here...\n");
 
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
