@@ -149,7 +149,7 @@ static int spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
 			(flag == SPIC_READ_BYTES)? "read" : "write");
 	*/
 
-   printf("spic_transfer() starting..\n");
+   //printf("spic_transfer() starting..\n");
 	// assert CS and we are already CLK normal high
 	ra_and(RT2880_SPI0_CTL_REG, ~(SPICTL_SPIENA_HIGH));
 	
@@ -196,7 +196,7 @@ end_trans:
 	// de-assert CS and
 	ra_or (RT2880_SPI0_CTL_REG, (SPICTL_SPIENA_HIGH));
 
-   printf("spic_transfer() finished: %02X\n", retval);
+   //printf("spic_transfer() finished: %02X\n", retval);
 	return retval;
 }
 
