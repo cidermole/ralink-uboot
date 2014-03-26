@@ -1143,20 +1143,31 @@ int raspi_write(char *buf, unsigned int to, int len)
 
 		// I have no idea why this should be needed.
 		raspi_read_sr(&sr);
+		if(!(sr & SR_WEL))
+			printf("%s: write enable missing! to:%x len:%x \n", __func__, to, len);
 
 		if (spi_chip_info->addr4b)
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES | SPIC_4B_ADDR);
 		else
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES);
 
+		raspi_read_fsr(&fsr);
+		if(fsr & (1 << 4)) // Program error bit
+		{
+			printf("FSR program error, at to=%08X, %08X, page_size = %08X", to, buf, page_size);
+		}
+		// wait until ready
+		while(!(fsr & (1 << 7)))
+			raspi_read_fsr(&fsr);
+		
 		/*
 		 * We MUST read the FSR here.
 		 * 
 		 * See N25Q512A datasheet, page 30, table 18, note 14:
 		 * "Requires the READ FLAG STATUS REGISTER command being issued with at least one byte output."
 		 */
-		while(!(fsr & FSR_PEC))
-			raspi_read_fsr(&fsr);
+		/*while(!(fsr & FSR_PEC))
+			raspi_read_fsr(&fsr);*/
 
 		//{
 		//	u32 user;
