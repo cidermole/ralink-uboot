@@ -833,11 +833,11 @@ static int raspi_erase_sector(u32 offset)
 	raspi_unprotect();
 
 #ifdef COMMAND_MODE
-   printf("COMMAND_MODE.\n");
+   //printf("COMMAND_MODE.\n");
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b)
 	{
-      printf("4B address mode activated.\n");
+      //printf("4B address mode activated.\n");
 		raspi_4byte_mode(1);
 		raspi_write_enable();
 		raspi_cmd(OPCODE_SE, offset, 0, 0, 0, 0, SPIC_4B_ADDR);
@@ -853,11 +853,11 @@ static int raspi_erase_sector(u32 offset)
 
 
 #else // COMMAND_MODE
-   printf("not command mode.\n");
+   //printf("not command mode.\n");
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
 
-      printf("4B address mode in non-cmd m.\n");
+      //printf("4B address mode in non-cmd m.\n");
 		raspi_4byte_mode(1);
 		raspi_write_enable();
 
@@ -1010,13 +1010,13 @@ int raspi_read(char *buf, unsigned int from, int len)
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b)
 	{
-      printf("raspi_4byte_mode(1) from raspi_read() CM\n");
+      //printf("raspi_4byte_mode(1) from raspi_read() CM\n");
 		raspi_4byte_mode(1);
-      printf("O\n");
+      //printf("O\n");
 		rdlen = raspi_cmd(code, from, 0, buf, len, 0, SPIC_READ_BYTES | SPIC_4B_ADDR);
-      printf("raspi_4byte_mode(0) from raspi_read() CM\n");
+      //printf("raspi_4byte_mode(0) from raspi_read() CM\n");
 		raspi_4byte_mode(0);
-      printf("O\n");
+      //printf("O\n");
 	}
 	else
 #endif
@@ -1032,17 +1032,17 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
-      printf("raspi_4byte_mode(1) from raspi_read()\n");
+      //printf("raspi_4byte_mode(1) from raspi_read()\n");
 		raspi_4byte_mode(1);
-      printf("O\n");
+      //printf("O\n");
 		cmd[1] = from >> 24;
 		cmd[2] = from >> 16;
 		cmd[3] = from >> 8;
 		cmd[4] = from;
 		rdlen = spic_read(cmd, 5, buf , len);
-      printf("raspi_4byte_mode(0) from raspi_read()\n");
+      //printf("raspi_4byte_mode(0) from raspi_read()\n");
 		raspi_4byte_mode(0);
-      printf("O\n");
+      //printf("O\n");
 	}
 	else
 #endif
@@ -1057,7 +1057,7 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 #else // READ_BY_PAGE
    
-   printf("READ_BY_PAGE, so no raspi_4byte_mode info here...\n");
+   //printf("READ_BY_PAGE, so no raspi_4byte_mode info here...\n");
 
 #ifdef ADDRESS_4B_MODE
 	if (spi_chip_info->addr4b) {
@@ -1118,9 +1118,9 @@ int raspi_write(char *buf, unsigned int to, int len)
 	u8 cmd[5];
 
 #ifdef COMMAND_MODE
-   printf("raspi_write with COMMAND_MODE\n");
+   //printf("raspi_write with COMMAND_MODE\n");
 #else
-   printf("raspi_write not with command mode.\n");
+   //printf("raspi_write not with command mode.\n");
 #endif
 	ra_dbg("%s: to:%x len:%x \n", __func__, to, len);
 
@@ -1156,9 +1156,9 @@ int raspi_write(char *buf, unsigned int to, int len)
 	page_offset = to % FLASH_PAGESIZE;
 
 #ifdef ADDRESS_4B_MODE
-   printf("4B address mode compiled in.\n");
+   //printf("4B address mode compiled in.\n");
 	if (spi_chip_info->addr4b) {
-      printf("4B address mode activated.\n");
+      //printf("4B address mode activated.\n");
 		raspi_4byte_mode(1);
 	}
 #endif
