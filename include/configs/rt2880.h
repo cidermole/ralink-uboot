@@ -430,4 +430,6 @@
 #define CONFIG_CRC32_VERIFY
 #endif /* RALINK_USB */
 
+#define CFG_HUSH_PARSER
+
 #endif	/* __CONFIG_H */
