@@ -641,9 +641,14 @@ static int raspi_4byte_mode(int enable)
 	{
 		ssize_t retval;
 		u8 code;
+		u8 fsr;
 
 		raspi_wait_ready(1);
-	
+
+		raspi_read_fsr(&fsr);
+		if((enable && (fsr & (1 << 0))) || (!enable && !(fsr & (1 << 0))))
+			printf("raspi_4byte_mode(): FSR=0x%02X\n", fsr);
+
 		if (enable)
 		{
 			code = 0xB7; /* EN4B, enter 4-byte mode */
@@ -676,6 +681,10 @@ static int raspi_4byte_mode(int enable)
 #endif
 		
 		raspi_write_disable();
+		
+		raspi_read_fsr(&fsr);
+		if((enable && !(fsr & (1 << 0))) || (!enable && (fsr & (1 << 0))))
+			printf("raspi_4byte_mode(): FSR=0x%02X\n", fsr);
 		
 		if (retval != 0) {
 			printf("%s: ret: %x\n", __func__, retval);
@@ -730,6 +739,16 @@ static inline int raspi_unprotect(void)
 	if ((sr & (SR_BP0 | SR_BP1 | SR_BP2)) != 0) {
 		sr = 0;
 		raspi_write_sr(&sr);
+	}
+	
+	if (raspi_read_sr(&sr) < 0) {
+		printf("%s: read_sr 2 fail: %x\n", __func__, sr);
+		return -1;
+	}
+
+	if ((sr & (SR_BP0 | SR_BP1 | SR_BP2)) != 0) {
+		printf("%s: tried to overwrite sr, but failed: %x\n", __func__, sr);
+		return -2;
 	}
 }
 
