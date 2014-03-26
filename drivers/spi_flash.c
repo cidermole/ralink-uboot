@@ -196,7 +196,7 @@ end_trans:
 	// de-assert CS and
 	ra_or (RT2880_SPI0_CTL_REG, (SPICTL_SPIENA_HIGH));
 
-   printf("spic_transfer() finished\n");
+   printf("spic_transfer() finished: %02X\n", retval);
 	return retval;
 }
 
@@ -561,17 +561,17 @@ static void raspi_poll_print_status()
 {
    u8 fsr, sr, sr_old, fsr_old;
    
-   if(!raspi_read_fsr(&fsr))
+   if(raspi_read_fsr(&fsr))
       return;
-   if(!raspi_read_sr(&sr))
+   if(raspi_read_sr(&sr))
       return;
    sr_old = sr; fsr_old = fsr;
    printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
    
    while(sr & (1 << 0)) { // write in progress
-      if(!raspi_read_fsr(&fsr))
+      if(raspi_read_fsr(&fsr))
          return;
-      if(!raspi_read_sr(&sr))
+      if(raspi_read_sr(&sr))
          return;
       if(fsr != fsr_old || sr != sr_old) {
          printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
@@ -1377,10 +1377,14 @@ int do_read_sr(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
    
    printf("do_read_sr()...\n");
    
-   if(!raspi_read_fsr(&fsr))
+   if(raspi_read_fsr(&fsr)) {
+      printf("read_fsr failed with 2\n");
       return 2;
-   if(!raspi_read_sr(&sr))
+   }
+   if(raspi_read_sr(&sr)) {
+      printf("read_sr failed with 2\n");
       return 2;
+   }
    
    printf("SR: 0x%02X, FSR: 0x%02X\n", sr, fsr);
    return 0;
