@@ -266,7 +266,7 @@ struct chip_info *spi_chip_info = NULL;
 
 static struct chip_info chips_data [] = {
 	/* REVISIT: fill in JEDEC ids, for parts that have them */
-	{ "N25Q512_B",      0x20, 0xbb201000, 64 * 1024, 1024,  1 },
+   { "N25Q512_B",      0x20, 0xbb201000, 64 * 1024, 1024,  1 },
 	{ "N25Q512_A",      0x20, 0xba201000, 64 * 1024, 1024,  1 },
 	{ "AT25DF321",		0x1f, 0x47000000, 64 * 1024, 64,  0 },
 	{ "AT26DF161",		0x1f, 0x46000000, 64 * 1024, 32,  0 },
@@ -282,6 +282,7 @@ static struct chip_info chips_data [] = {
 #endif
 	{ "S25FL128P",		0x01, 0x20180301, 64 * 1024, 256, 0 },
 	{ "S25FL129P",		0x01, 0x20184D01, 64 * 1024, 256, 0 },
+   { "S25FL128S",    0x01, 0x20184D00, 256 * 1024, 64, 0 }, // David, untested!
 	{ "S25FL032P",		0x01, 0x02154D00, 64 * 1024, 64,  0 },
 	{ "S25FL064P",		0x01, 0x02164D00, 64 * 1024, 128, 0 },
 	{ "F25L64QA",           0x8c, 0x41170000, 64 * 1024, 128, 0 }, //ESMT
