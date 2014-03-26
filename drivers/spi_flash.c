@@ -94,7 +94,6 @@
 #endif
 
 static int raspi_wait_ready(int sleep_ms);
-static unsigned int spi_wait_nsec = 0;
 
 #if 0
 static void gpio0_low(void)
@@ -117,11 +116,10 @@ static void gpio0_high(void)
 
 static int spic_busy_wait(void)
 {
-	unsigned int t = spi_wait_nsec;
 	do {
 		if ((ra_inl(RT2880_SPI0_STAT_REG) & 0x01) == 0)
 			return 0;
-	} while (--t);
+	} while (1);
 
 	printf("%s: fail \n", __func__);
 	return -1;
@@ -243,10 +241,6 @@ int spic_init(void)
 	// set idle state
 	ra_outl(RT2880_SPI0_CTL_REG, SPICTL_HIZSDO | SPICTL_SPIENA_HIGH);
 
-	spi_wait_nsec = (8 * 1000 / ((mips_bus_feq / 1000 / 1000 / SPICFG_SPICLK_DIV8) )) >> 1 ;
-	spi_wait_nsec = 1000;
-
-	printf("spi_wait_nsec: (DAVID hardcoded) %x \n", spi_wait_nsec);
 	return 0;
 }
 
