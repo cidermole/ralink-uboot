@@ -117,10 +117,11 @@ static void gpio0_high(void)
 
 static int spic_busy_wait(void)
 {
+	unsigned int t = spi_wait_nsec;
 	do {
 		if ((ra_inl(RT2880_SPI0_STAT_REG) & 0x01) == 0)
 			return 0;
-	} while (spi_wait_nsec >> 1);
+	} while (--t);
 
 	printf("%s: fail \n", __func__);
 	return -1;
@@ -243,8 +244,9 @@ int spic_init(void)
 	ra_outl(RT2880_SPI0_CTL_REG, SPICTL_HIZSDO | SPICTL_SPIENA_HIGH);
 
 	spi_wait_nsec = (8 * 1000 / ((mips_bus_feq / 1000 / 1000 / SPICFG_SPICLK_DIV8) )) >> 1 ;
+	spi_wait_nsec = 1000;
 
-	printf("spi_wait_nsec: %x \n", spi_wait_nsec);
+	printf("spi_wait_nsec: (DAVID hardcoded) %x \n", spi_wait_nsec);
 	return 0;
 }
 
@@ -1043,7 +1045,7 @@ int raspi_read(char *buf, unsigned int from, int len)
 
 int raspi_write(char *buf, unsigned int to, int len)
 {
-	u8 fsr = 0;
+	u8 fsr = 0, sr;
 	u32 page_offset, page_size;
 	int rc = 0, retlen = 0;
 	u8 cmd[5];
@@ -1116,6 +1118,9 @@ int raspi_write(char *buf, unsigned int to, int len)
 #ifdef RD_MODE_QUAD
 		raspi_set_quad();
 #endif
+
+		// I have no idea why this should be needed.
+		raspi_read_sr(&sr);
 
 		if (spi_chip_info->addr4b)
 			rc = raspi_cmd(OPCODE_PP, to, 0, buf, page_size, 0, SPIC_WRITE_BYTES | SPIC_4B_ADDR);
