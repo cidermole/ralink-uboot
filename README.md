@@ -20,7 +20,7 @@ Building
 	$ make
 	$ hexdump -C uboot.bin | head  # look at first bytes to verify
 
-NOTE: The Makefile output under "IMPORTANT", stating the output filename, is **wrong**. For directly flashing the binary, it has to be **uboot.bin**.
+NOTE: The output filename for directly flashing the binary has to be **uboot.bin**.
 
 
 Reference first bytes
