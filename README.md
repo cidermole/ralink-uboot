@@ -26,7 +26,7 @@ NOTE: The Makefile output under "IMPORTANT", stating the output filename, is **w
 Reference first bytes
 ---------------------
 
-The first bytes of uboot.bin are some sort of interrupt vector table and should look like this:
+The first bytes of uboot.bin are some sort of interrupt vector table and should look approximately like this (exact address entries may vary):
 
 	00000000  ff 00 00 10 00 00 00 00  fd 00 00 10 00 00 00 00  |................|
 	00000010  7f 02 00 10 00 00 00 00  7d 02 00 10 00 00 00 00  |........}.......|
