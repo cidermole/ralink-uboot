@@ -703,8 +703,10 @@ static int raspi_4byte_mode(int enable)
 		retval = spic_read(&code, 1, 0, 0);
 #endif
 		
+		// info: there shouldn't be a need to do this, "after the command has been executed, the write enable latch bit is cleared to 0"
 		raspi_write_disable();
 		
+		// better be safe than sorry...
 		raspi_read_fsr(&fsr);
 		if((enable && !(fsr & (1 << 0))) || (!enable && (fsr & (1 << 0))))
 			printf("raspi_4byte_mode(): FSR=0x%02X\n", fsr);
