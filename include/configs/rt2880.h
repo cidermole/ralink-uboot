@@ -429,5 +429,22 @@
 #define LITTLEENDIAN
 #define CONFIG_CRC32_VERIFY
 #endif /* RALINK_USB */
-
+/*
+* for Dual Image
+*/
+#define TIGERCEL_DUAL_IMAGE 1
+#ifdef TIGERCEL_DUAL_IMAGE
+    #undef CFG_KERN_ADDR
+    #define IMAGE_PART_SIZE     0x750000
+    #define CFG_KERN_ADDR       (CFG_FLASH_BASE + (CFG_BOOTLOADER_SIZE + CFG_CONFIG_SIZE + 0x10000))
+    #define OS1_FLASH_ADDR      (CFG_FLASH_BASE + 0x40000 + 0x10000)
+    #define OS2_FLASH_ADDR      (OS1_FLASH_ADDR + IMAGE_PART_SIZE)
+    #define BOOT_FLAG_ADDR      0xFF0000
+    #define BOOT_FLAG_SIZE      0x10000
+    #define BOOT_RETRY_TIMES    4
+    #define CFG_KERN_SIZE       IMAGE_PART_SIZE
+    #define CFG_FLAG_ADDR_8M    0x007F0000   
+    #define CFG_FLAG_ADDR_16M   0x00FE0000
+    #define CFG_FLAG_SIZE       0x10000
+#endif
 #endif	/* __CONFIG_H */

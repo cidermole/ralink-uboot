@@ -72,7 +72,7 @@ define_bool ON_BOARD_SDR y
 choice 'DRAM Component' "64Mb ON_BOARD_64M_DRAM_COMPONENT \
                          128Mb ON_BOARD_128M_DRAM_COMPONENT \
                          256Mb ON_BOARD_256M_DRAM_COMPONENT \
-                         512Mb ON_BOARD_512M_DRAM_COMPONENT 
+                         512Mb ON_BOARD_512M_DRAM_COMPONENT
 		      " 128Mb
 
 choice 'DRAM Bus' "16bits ON_BOARD_16BIT_DRAM_BUS \
@@ -867,7 +867,7 @@ if [ "$ON_BOARD_SDR" = "y" ]; then
 choice 'DRAM Component' "64Mb ON_BOARD_64M_DRAM_COMPONENT \
                          128Mb ON_BOARD_128M_DRAM_COMPONENT \
                          256Mb ON_BOARD_256M_DRAM_COMPONENT \
-                         512Mb ON_BOARD_512M_DRAM_COMPONENT 
+                         512Mb ON_BOARD_512M_DRAM_COMPONENT
 		      " 128Mb
 else
 if [ "$ON_BOARD_DDR1" = "y" ]; then
@@ -981,7 +981,7 @@ define_hex	CPLL_SSC_CFG	0x7
 
 fi
 
-
+bool "Tftp Auto Upload Image" AUTO_UPLOAD_IMAGE_SUPPORT
 
 bool "Dual Image" DUAL_IMAGE_SUPPORT
 

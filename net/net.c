@@ -246,6 +246,7 @@ void ArpRequest (void)
 
 void ArpTimeoutCheck(void)
 {
+	static arp_count = 0;
 	ulong t;
 
 	if (!NetArpWaitPacketIP)
@@ -263,7 +264,9 @@ void ArpTimeoutCheck(void)
 			NetStartAgain();
 		} else {
 			NetArpWaitTimerStart = t;
-			puts("\nArpTimeoutCheck \n");
+			puts("\nArpTimeoutCheck !!!\n");
+			if (++arp_count > 2)
+				NetState = NETLOOP_TIMEOUT;
 			ArpRequest();
 		}
 	}
@@ -561,6 +564,9 @@ restart:
 
 		case NETLOOP_FAIL:
 			return (-1);
+		case NETLOOP_TIMEOUT:
+			eth_halt();
+			return (-1);
 		}
 	}
 }
@@ -581,6 +587,12 @@ startAgainHandler(uchar * pkt, unsigned dest, unsigned src, unsigned len)
 
 void NetStartAgain (void)
 {
+	static net_count = 0;
+	if (++net_count > 2) {
+		NetState = NETLOOP_TIMEOUT;
+		return;
+	}
+	
 #ifdef	CONFIG_NET_MULTI
 	DECLARE_GLOBAL_DATA_PTR;
 #endif
@@ -612,7 +624,9 @@ void NetStartAgain (void)
 			NetState = NETLOOP_FAIL;
 		}
 	} else {
+		puts("\NetStartAgain !!\n");
 		NetState = NETLOOP_RESTART;
+		NetState = NETLOOP_TIMEOUT;
 	}
 #endif	/* CONFIG_NET_MULTI */
 }

@@ -307,6 +307,8 @@ TftpHandler (uchar * pkt, unsigned dest, unsigned src, unsigned len)
 static void
 TftpTimeout (void)
 {
+	puts("\nTftpTimeout !!\n");
+	static int tftp_count = 0;
 	if (++TftpTimeoutCount > TIMEOUT_COUNT) {
 		puts ("\nRetry count exceeded; starting again\n");
 		NetStartAgain ();
@@ -314,6 +316,11 @@ TftpTimeout (void)
 		puts ("T ");
 		NetSetTimeout (TIMEOUT * CFG_HZ, TftpTimeout);
 		TftpSend ();
+		if (++tftp_count > 1) {
+			puts("\nTftpTimeout !! To exit\n");
+			NetState = NETLOOP_TIMEOUT;
+			return;
+		}
 	}
 }
 
@@ -362,7 +369,7 @@ TftpStart (void)
 
 	printf ("\n TIMEOUT_COUNT=%d,Load address: 0x%lx\n",TIMEOUT_COUNT,load_addr);
 
-	puts ("Loading: *\b");
+	puts ("Loading: *\n");
 
 	NetSetTimeout (TIMEOUT * CFG_HZ * 2, TftpTimeout);
 	NetSetHandler (TftpHandler);

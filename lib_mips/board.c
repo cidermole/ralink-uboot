@@ -1,4 +1,4 @@
-/*
+ /*
  * (C) Copyright 2003
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
@@ -32,11 +32,13 @@
 #include <rt_mmap.h>
 #include <spi_api.h>
 #include <nand_api.h>
-
+#include "../autoconf.h"
 DECLARE_GLOBAL_DATA_PTR;
 #undef DEBUG
 
 #define SDRAM_CFG1_REG RALINK_SYSCTL_BASE + 0x0304
+#define AUTO_IMAGE_RELOAD      "Tigercel_uImage"
+#define AUTO_IMAGE_NORELOAD    "tigercel_uImage"
 
 int modifies= 0;
 
@@ -56,6 +58,16 @@ int modifies= 0;
 #if defined (RT6855A_ASIC_BOARD) || defined(RT6855A_FPGA_BOARD)	
 static int watchdog_reset();
 #endif
+
+void tsleep(int value)
+{
+    int i=value, j=50000;
+
+    while(i--)
+    {
+        while(j--);
+    }
+}
 
 extern int timer_init(void);
 
@@ -98,6 +110,11 @@ const char version_string[] =
 
 extern ulong load_addr; /* Default Load Address */
 
+typedef struct bootinfo{
+    unsigned char index;
+    unsigned char ud_flag;
+    unsigned char retry[BOOT_RETRY_TIMES];
+}bootinfo_t;
 
 unsigned long mips_cpu_feq;
 unsigned long mips_bus_feq;
@@ -799,6 +816,8 @@ void board_init_f(ulong bootflag)
 #define SEL_LOAD_LINUX_WRITE_FLASH      2
 #define SEL_BOOT_FLASH                  3
 #define SEL_ENTER_CLI                   4
+#define SEL_LOAD_UCOS_SDRAM		5
+#define SEL_LOAD_CRAMFS_WRITE_FLASH     6
 #define SEL_LOAD_BOOT_WRITE_FLASH_BY_SERIAL 7
 #define SEL_LOAD_BOOT_SDRAM             8
 #define SEL_LOAD_BOOT_WRITE_FLASH       9
@@ -817,6 +836,18 @@ void OperationSelect(void)
 	printf("   %d: Load Boot Loader code then write to Flash via Serial. \n", SEL_LOAD_BOOT_WRITE_FLASH_BY_SERIAL);
 #endif // RALINK_UPGRADE_BY_SERIAL //
 	printf("   %d: Load Boot Loader code then write to Flash via TFTP. \n", SEL_LOAD_BOOT_WRITE_FLASH);
+}
+
+void filename_copy (uchar *dst, uchar *src, int size)
+{
+	*dst = '"';
+	dst++;
+	while ((size > 0) && *src && (*src != '"')) {
+		*dst++ = *src++;
+		size--;
+	}
+	*dst++ = '"';
+	*dst = '\0';
 }
 
 int tftp_config(int type, char *argv[])
@@ -1203,7 +1234,283 @@ int check_image_validation(void)
 }
 #endif
 
+int auto_upload_config(int type, char *argv[])
+{
+	char *s;
+	char default_file[ARGV_LEN], file[ARGV_LEN], devip[ARGV_LEN], srvip[ARGV_LEN], default_ip[ARGV_LEN];
 
+	printf(" Please Input new ones /or Ctrl-C to discard\n");
+
+	memset(default_file, 0, ARGV_LEN);
+	memset(file, 0, ARGV_LEN);
+	memset(devip, 0, ARGV_LEN);
+	memset(srvip, 0, ARGV_LEN);
+	memset(default_ip, 0, ARGV_LEN);
+
+	printf("\tInput device IP ");
+	s = getenv("ipaddr");
+	memcpy(devip, s, strlen(s));
+	memcpy(default_ip, s, strlen(s));
+
+	printf("(%s) ", devip);
+
+	strcpy(devip,"10.10.10.123");
+
+	setenv("ipaddr", devip);
+	if (strcmp(default_ip, devip) != 0)
+		modifies++;
+
+	printf("\tInput server IP ");
+	s = getenv("serverip");
+	memcpy(srvip, s, strlen(s));
+	memset(default_ip, 0, ARGV_LEN);
+	memcpy(default_ip, s, strlen(s));
+
+	printf("(%s) ", srvip);
+
+	strcpy(srvip,"10.10.10.3");
+
+	setenv("serverip", srvip);
+	if (strcmp(default_ip, srvip) != 0)
+		modifies++;
+
+	if(type == SEL_LOAD_BOOT_SDRAM 
+			|| type == SEL_LOAD_BOOT_WRITE_FLASH 
+			|| type == SEL_LOAD_UCOS_SDRAM 
+			|| type == SEL_LOAD_BOOT_WRITE_FLASH_BY_SERIAL) {
+		if(type == SEL_LOAD_BOOT_SDRAM)
+#if defined (RT2880_ASIC_BOARD) || defined (RT2880_FPGA_BOARD)
+			argv[1] = "0x8a200000";
+#else
+		argv[1] = "0x80200000";
+#endif
+		else if (type == SEL_LOAD_UCOS_SDRAM)
+			argv[1] = "0x88001000";
+		else
+#if defined (RT2880_ASIC_BOARD) || defined (RT2880_FPGA_BOARD)
+			argv[1] = "0x8a100000";
+#else
+		argv[1] = "0x80100000";
+#endif
+		printf("\tInput Uboot filename ");
+		//argv[2] = "uboot.bin";
+		strncpy(argv[2], "uboot.bin", ARGV_LEN);
+	}
+	else if (type == SEL_LOAD_LINUX_WRITE_FLASH 
+			|| type == SEL_LOAD_CRAMFS_WRITE_FLASH) {
+#if defined (RT2880_ASIC_BOARD) || defined (RT2880_FPGA_BOARD)
+		argv[1] = "0x8a100000";
+#else
+		argv[1] = "0x80100000";
+#endif
+		if(type == SEL_LOAD_CRAMFS_WRITE_FLASH)
+			printf("\tInput Linux FileSystem filename ");
+		else
+			printf("\tInput Linux Kernel filename ");
+		//argv[2] = "uImage"; winfred: use strncpy instead to prevent the buffer overflow at filename_copy later
+		strncpy(argv[2], "uImage", ARGV_LEN);
+	}
+	else if (type == SEL_LOAD_LINUX_SDRAM ) {
+		/* bruce to support ramdisk */
+#if defined (RT2880_ASIC_BOARD) || defined (RT2880_FPGA_BOARD)
+		argv[1] = "0x8a800000";
+#else
+		argv[1] = "0x80800000";
+#endif
+		printf("\tInput Linux Kernel filename ");
+		//argv[2] = "uImage";
+		strncpy(argv[2], "uImage", ARGV_LEN);
+	}
+
+	s = getenv("bootfile");
+	if (s != NULL) {
+		memcpy(file, s, strlen(s));
+		memcpy(default_file, s, strlen(s));
+	}
+	printf("(%s) ", file);
+
+	strcpy(file, AUTO_IMAGE_RELOAD);
+
+	if (file == NULL)
+		return 1;
+	filename_copy (argv[2], file, sizeof(file));
+	setenv("bootfile", file);
+	if (strcmp(default_file, file) != 0)
+		modifies++;
+
+	printf("\n");
+	return 0;
+	
+}
+
+int auto_upload_image(cmd_tbl_t *cmdtp, ulong FlashSize)
+{
+	char *argv[4];
+	int argc= 3;
+	int ret = 0, i = 0;
+	char addr_str[11] = "";
+    bootinfo_t info;
+    char cmd_buf[128] = {0};
+	
+	argv[2] = &file_name_space[0];
+	memset(file_name_space,0,ARGV_LEN);
+
+#if (CONFIG_COMMANDS & CFG_CMD_NET)
+		eth_initialize(gd->bd);
+#endif
+
+	printf("upload image automaticly\n");
+	
+	auto_upload_config(SEL_LOAD_LINUX_WRITE_FLASH, argv);
+
+	setenv("autostart", "no");
+	
+	ret = do_tftpb(cmdtp, 0, argc, argv);
+
+	if (ret == 1) {
+		printf("do_tftpd failed!\n");
+		return 1;
+	}
+#if defined (CFG_ENV_IS_IN_NAND)
+	if (1) {
+		unsigned int load_address = simple_strtoul(argv[1], NULL, 16);
+		ranand_erase_write((u8 *)load_address, CFG_KERN_ADDR-CFG_FLASH_BASE, NetBootFileXferSize);
+	}
+#elif defined (CFG_ENV_IS_IN_SPI)
+	if (1) {
+		unsigned int load_address = simple_strtoul(argv[1], NULL, 16);
+		raspi_erase_write((u8 *)load_address, CFG_KERN_ADDR-CFG_FLASH_BASE, NetBootFileXferSize);
+        //erase config flags, reload all configs
+        if(FlashSize >= 0x1000000)   //16M Flash
+        {
+            raspi_erase(CFG_FLAG_ADDR_16M, CFG_FLAG_SIZE);
+        }
+        else
+        {
+            raspi_erase(CFG_FLAG_ADDR_8M, CFG_FLAG_SIZE);
+        }
+    }
+#else //CFG_ENV_IS_IN_FLASH
+#if (defined (ON_BOARD_8M_FLASH_COMPONENT) || defined (ON_BOARD_16M_FLASH_COMPONENT)) && (defined (RT2880_ASIC_BOARD) || defined (RT2880_FPGA_BOARD) || defined (RT3052_MP1))
+	//erase linux
+	if (NetBootFileXferSize <= (0x400000 - (CFG_BOOTLOADER_SIZE + CFG_CONFIG_SIZE + CFG_FACTORY_SIZE))) {
+		e_end = CFG_KERN_ADDR + NetBootFileXferSize;
+		if (0 != get_addr_boundary(&e_end))
+			return 1;
+		printf("Erase linux kernel block !!\n");
+		printf("From 0x%X To 0x%X\n", CFG_KERN_ADDR, e_end);
+		flash_sect_erase(CFG_KERN_ADDR, e_end);
+	}
+	else if (NetBootFileXferSize <= CFG_KERN_SIZE) {
+		e_end = PHYS_FLASH_2 + NetBootFileXferSize - (0x400000 - (CFG_BOOTLOADER_SIZE + CFG_CONFIG_SIZE + CFG_FACTORY_SIZE));
+		if (0 != get_addr_boundary(&e_end))
+			return 1;
+		printf("Erase linux kernel block !!\n");
+		printf("From 0x%X To 0x%X\n", CFG_KERN_ADDR, CFG_FLASH_BASE+0x3FFFFF);
+		flash_sect_erase(CFG_KERN_ADDR, CFG_FLASH_BASE+0x3FFFFF);
+		printf("Erase linux file system block !!\n");
+		printf("From 0x%X To 0x%X\n", PHYS_FLASH_2, e_end);
+		flash_sect_erase(PHYS_FLASH_2, e_end);
+	}
+#else
+	if (NetBootFileXferSize <= (bd->bi_flashsize - (CFG_BOOTLOADER_SIZE + CFG_CONFIG_SIZE + CFG_FACTORY_SIZE))) {
+		e_end = CFG_KERN_ADDR + NetBootFileXferSize;
+		if (0 != get_addr_boundary(&e_end))
+			return 1;
+		printf("Erase linux kernel block !!\n");
+		printf("From 0x%X To 0x%X\n", CFG_KERN_ADDR, e_end);
+		flash_sect_erase(CFG_KERN_ADDR, e_end);
+	}
+#endif
+	else {
+		printf("***********************************\n");
+		printf("The Linux Image size is too big !! \n");
+		printf("***********************************\n");
+		return 1;
+	}
+
+	//cp.linux
+	argc = 4;
+	argv[0]= "cp.linux";
+	do_mem_cp(cmdtp, 0, argc, argv);
+#endif //CFG_ENV_IS_IN_FLASH
+
+#ifdef DUAL_IMAGE_SUPPORT
+	/* Don't do anything to the firmware upgraded in Uboot, since it may be used for testing */
+	setenv("Image1Stable", "1");
+	saveenv();
+#endif
+	printf("\nauto upload image success\n");
+    //bootm bc050000
+    argc= 2;
+#ifdef TIGERCEL_DUAL_IMAGE 
+    if(FlashSize >= 0x1000000)   //16M Flash
+    {
+        printf("Uboot has known the flash size is >= 16M Flash, with dual image support.\n");
+        raspi_read(&info, BOOT_FLAG_ADDR, sizeof(bootinfo_t));
+        printf("bootinfo:\n\tindex:0x%02x\n\tud_flag:0x%02x\n",info.index,info.ud_flag);
+        if(info.index != 0 && info.index != 1)
+        {
+            //It's a fresh new device or a dummy boot flag
+            info.index = 0x0;
+            info.ud_flag = 0x0f;
+            raspi_erase(BOOT_FLAG_ADDR, BOOT_FLAG_SIZE);
+            memset(info.retry, 0xff, sizeof(info.retry));
+        }
+
+        if(info.ud_flag == 0x0f)
+        {
+            //got a update flag
+            printf("\tretry:");
+            for(i = 0; i < BOOT_RETRY_TIMES; i++)
+            {
+                printf("0x%02x ", info.retry[i]);
+                if(info.retry[i] == 0xff)
+                {
+                    info.retry[i] = 0x55;
+                    break;
+                }
+            }
+            printf("\n");
+            if(i == BOOT_RETRY_TIMES)
+            {
+                //we try hard to boot kernel, but failed, try annother image.
+                info.index = info.index?0:1;
+                info.ud_flag = 0x0f;
+                memset(info.retry, 0xff, sizeof(info.retry));
+                printf("boot kernel failed arrived the max times, try annother image\n",info.index,info.ud_flag);
+                raspi_erase(BOOT_FLAG_ADDR, BOOT_FLAG_SIZE);
+            }
+            raspi_write(&info, BOOT_FLAG_ADDR, sizeof(info));
+        }
+        printf("\nimage %d to boot...\n", info.index);
+        if(info.index == 0)
+        {
+            setenv("bootargs", "console=ttyS1,57600n8 root=/dev/mtdblock5");
+            sprintf(addr_str, "0x%X", OS1_FLASH_ADDR);
+        }
+        else
+        {
+            setenv("bootargs", "console=ttyS1,57600n8 root=/dev/mtdblock8");
+            sprintf(addr_str, "0x%X", OS2_FLASH_ADDR);
+        }
+    }
+    else //Other size flash 
+    {
+        printf("Uboot has known the flash size is < 16M Flash, no dual image support.\n");
+        //set default load_address
+        setenv("bootargs", "console=ttyS1,57600n8 root=/dev/mtdblock5");
+        sprintf(addr_str, "0x%X", OS1_FLASH_ADDR);
+    }
+#else
+    sprintf(addr_str, "0x%X", CFG_KERN_ADDR);
+#endif //end Tigercel DUAL_IMAGE ,be set 1 in rt2880.h 408 line
+
+    argv[1] = &addr_str[0];
+    printf("   \n3: System Boot system code via Flash.\n");
+    do_bootm(cmdtp, 0, 2, argv);
+    return 0;
+}
 /************************************************************************
  *
  * This is the next part if the initialization sequence: we are now
@@ -1226,17 +1533,18 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #endif
 	char *s, *e;
 	bd_t *bd;
-	int i;
+	int i,j, PressCount = 0, TotalCount = 0;
 	int timer1= CONFIG_BOOTDELAY;
 	unsigned char BootType='3', confirm=0;
 	int my_tmp;
 	char addr_str[11];
+        u32 rvalue, PowerKeyCount;
 #if defined (CFG_ENV_IS_IN_FLASH)
 	ulong e_end;
 #endif
 
 #if defined (RT2880_FPGA_BOARD) || defined (RT2880_ASIC_BOARD)
-	u32 value,kk;
+	u32 value, kk;
 
 	memcpy(&gd_data, (void *)gd, sizeof(gd_t));
 	gd = &gd_data;
@@ -1247,6 +1555,121 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	memcpy((void *)(CFG_SDRAM_BASE + DRAM_SIZE*0x100000 - 0x10000), (void *)gd, sizeof(gd_t));
 	gd = (gd_t *)(CFG_SDRAM_BASE + DRAM_SIZE*0x100000- 0x10000);//&gd_data;
 #endif
+
+        rvalue = RALINK_REG(RALINK_SYSCTL_BASE + 0x60);
+        rvalue |= 0x10A001;
+        RALINK_REG(RALINK_SYSCTL_BASE + 0x60) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x24);
+        rvalue |= 0x380000;
+        rvalue &= 0xFFFFFFFB; 
+        RALINK_REG(RALINK_PIO_BASE + 0x24) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x20);
+        rvalue &= 0xFFF7FFFF;
+        rvalue |= 0x300000;
+        RALINK_REG(RALINK_PIO_BASE + 0x20) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x74);
+        rvalue |= 0x07;
+        RALINK_REG(RALINK_PIO_BASE + 0x74) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x70);
+        rvalue |= 0x07;
+        RALINK_REG(RALINK_PIO_BASE + 0x70) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x9C);
+        rvalue |= 0x01;
+        RALINK_REG(RALINK_PIO_BASE + 0x9C) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x98);
+        rvalue = 0x01;
+        RALINK_REG(RALINK_PIO_BASE + 0x98) = rvalue;
+
+        /* Delay start power */
+        printf("\nWaiting key for longer time to start system...\n");
+	for(j=0;j<2000;j++)
+	{
+            for(i=0;i<50000;i++)
+	    {
+	    }
+            if(j%100 == 0)
+            {
+                printf("*");
+            }
+	}
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x20);
+        printf("rvalue = %d.\n", (rvalue & 0x04));
+        if((rvalue & 0x04) == 0)
+        {
+            printf("Power button pressing time is too short, system will not start!!!\n");
+            rvalue = RALINK_REG(RALINK_SYSCTL_BASE + 0x38);
+            printf("reset register = 0x%x.\n", rvalue);
+	    if((rvalue & 0x04) == 0)
+	    {
+                while(1)
+                {
+                    printf("\nWaiting key ------");
+                    rvalue = RALINK_REG(RALINK_PIO_BASE + 0x20);
+                    printf("rvalue = %d.\n", (rvalue & 0x04));
+                    if((rvalue & 0x04) == 0x04)
+                    {
+                        if(PowerKeyCount++>200)
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        PowerKeyCount = 0;
+                    }
+
+                    for(i=0;i<50000;i++)
+                    {
+                    }
+                }
+	    } 
+	}
+        else
+        {
+            rvalue = RALINK_REG(RALINK_SYSCTL_BASE + 0x38);
+            printf("reset register = 0x%x.\n", rvalue);
+        }
+
+	printf("\nYes, time is enough, Let's start.!\n");
+
+        //Set power GPIO STATUS1, STATUS2
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x20);
+        rvalue |= 0x80000;
+        RALINK_REG(RALINK_PIO_BASE + 0x20) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x20);
+        printf("After Set power on ------------------- rvalue = 0x%08x.\n", rvalue);
+        rvalue = RALINK_REG(RALINK_SYSCTL_BASE + 0x60);
+        printf("GPIOMODE = 0x%08x.\n", rvalue);
+        printf("RALINK_PIO_BASE  = %ld.\n", RALINK_PIO_BASE);
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x70);
+        rvalue &= 0xFFFFFFFE;
+        RALINK_REG(RALINK_PIO_BASE + 0x70) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x98);
+        rvalue = 0x0;
+        RALINK_REG(RALINK_PIO_BASE + 0x98) = rvalue;
+#if 0
+        rvalue = RALINK_REG(RALINK_SYSCTL_BASE + 0x60);
+        rvalue &= 0xFFFFDFFF;
+        RALINK_REG(RALINK_SYSCTL_BASE + 0x60) = rvalue;
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x74);
+        rvalue |= 0x06;
+        RALINK_REG(RALINK_PIO_BASE + 0x74) = rvalue;
+#endif
+
+        rvalue = RALINK_REG(RALINK_PIO_BASE + 0x70);
+        rvalue &= 0xFFFFFFF9;
+        RALINK_REG(RALINK_PIO_BASE + 0x70) = rvalue;
 
 #if defined(MT7620_ASIC_BOARD)
 	/* Enable E-PHY clock */ /* TODO: remove printf()*/
@@ -1809,7 +2232,11 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	    s = getenv ("bootdelay");
 	    timer1 = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
 	}
-
+#ifdef AUTO_UPLOAD_IMAGE_SUPPORT
+	//auto upload image
+	if (auto_upload_image(cmdtp, size) == 0)
+		return;
+#endif
 	OperationSelect();   
 	while (timer1 > 0) {
 		--timer1;

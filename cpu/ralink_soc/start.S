@@ -54,7 +54,7 @@
 #if defined(RT6855A_FPGA_BOARD) || defined(RT6855A_ASIC_BOARD)
 #define DELAY_USEC(us)				((700*(us))/3)
 #elif defined(MT7620_FPGA_BOARD) || defined(MT7620_ASIC_BOARD)
-#define DELAY_USEC(us)              ((60*(us))/4)
+#define DELAY_USEC(us)              ((80*(us))/4)
 #else
 #define DELAY_USEC(us)				((500*(us))/3)
 #endif
@@ -566,6 +566,47 @@ reset:
 	nop
 #endif
 
+    li t5, RALINK_SYSCTL_BASE + 0x60
+    lw t6, 0(t5)
+    nop
+    or t6, 0x108001 
+    nop
+    sw t6, 0(t5)
+    nop
+
+    li t5, RALINK_PIO_BASE + 0x24
+    lw t6, 0(t5)
+    nop
+    or t6, 0x380000 
+    and t6, 0xFFFFFFFB
+    nop
+    sw t6, 0(t5)
+    nop
+
+    li t5, RALINK_PIO_BASE + 0x20
+    lw t6, 0(t5)
+    nop
+    or t6, 0x300000
+    nop
+    sw t6, 0(t5)
+    nop
+
+    li t5, RALINK_PIO_BASE + 0x74
+    lw t6, 0(t5)
+    nop
+    or t6, 0x06
+    nop
+    sw t6, 0(t5)
+    nop
+
+    li t5, RALINK_PIO_BASE + 0x70
+    lw t6, 0(t5)
+    nop
+    or t6, 0x06
+    nop
+    sw t6, 0(t5)
+    nop
+
 #if (TEXT_BASE == 0xBFC00000) || (TEXT_BASE == 0xBF000000) || (TEXT_BASE == 0xBC000000)
 #if defined(MT7620_ASIC_BOARD) || defined(MT7620_FPGA_BOARD)
 	/* warm reset will skip CPU PLL CONFIG */
@@ -752,7 +793,6 @@ DDR_READY:
 	sw t2, 0(t1)
 	nop
 #endif	
-
 #ifdef RALINK_DDR_OPTIMIZATION
 	/* DDR: set Burst Length=4 in 32 bits dram bus for better performance
 	 *          Burst Length=8 in non 32 bits dram bus
@@ -1888,7 +1928,6 @@ tRFCinit:
         nop
 #endif
 #endif
-
 #if defined(RT5350_ASIC_BOARD)
 	// set default LED polarity value for RT5350 REF board
 	// Active status:

@@ -330,6 +330,7 @@ extern int		NetState;		/* Network loop state		*/
 #define NETLOOP_RESTART		2
 #define NETLOOP_SUCCESS		3
 #define NETLOOP_FAIL		4
+#define NETLOOP_TIMEOUT         5
 
 #ifdef CONFIG_NET_MULTI
 extern int		NetRestartWrap;		/* Tried all network devices	*/

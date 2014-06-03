@@ -258,8 +258,6 @@ struct chip_info *spi_chip_info = NULL;
 
 static struct chip_info chips_data [] = {
 	/* REVISIT: fill in JEDEC ids, for parts that have them */
-	{ "N25Q512_B",      0x20, 0xbb201000, 64 * 1024, 1024,  0 },
-	{ "N25Q512_A",      0x20, 0xba201000, 64 * 1024, 1024,  0 },
 	{ "AT25DF321",		0x1f, 0x47000000, 64 * 1024, 64,  0 },
 	{ "AT26DF161",		0x1f, 0x46000000, 64 * 1024, 32,  0 },
 	{ "FL016AIF",		0x01, 0x02140000, 64 * 1024, 32,  0 },
